@@ -15,8 +15,7 @@
 
 <ol>
   <li><strong>Clone o repositório:</strong>
-    <pre><code>git clone https://github.com/pedrobellezia/nseiainda.git
-cd nseiainda
+    <pre><code>git clone https://github.com/pedrobellezia/Scrapper-on-demand.git
 </code></pre>
   </li>
   <li><strong>Crie um ambiente virtual e ative:</strong>
@@ -28,8 +27,8 @@ source .venv/bin/activate
     <pre><code>pip install -r requirements.txt
 </code></pre>
   </li>
-  <li><strong>Instale os browsers do Playwright:</strong>
-    <pre><code>playwright install
+  <li><strong>Instale o Playwright:</strong>
+    <pre><code>playwright install chromium
 </code></pre>
   </li>
   <li><strong>Execute a aplicação:</strong>
@@ -45,12 +44,12 @@ source .venv/bin/activate
 
 <p>Se preferir rodar a aplicação em um container Docker, basta executar o comando abaixo na raiz do projeto:</p>
 <pre><code>docker compose up</code></pre>
-<p>O serviço estará disponível O serviço estará disponível no seu IP na porta 5000.</p>
+<p>O serviço estará disponível no seu IP na porta 5000.</p>
 
 
 <h2>Exemplo de requisição</h2>
 
-Para utilizar o serviço, envie uma requisição POST para o endpoint `/execute_scrap` contendo um JSON com as instruções. Veja abaixo exemplos de como estruturar o JSON e realizar a chamada:
+Para utilizar o serviço, envie uma requisição POST para o endpoint `/execute_scrap` contendo um JSON com as instruções. Veja abaixo exemplos de como estruturar o JSON:
 
 <h1>Estrutura do JSON</h1>
 <p>O script é executado com base em uma série de parâmetros definidos num JSON, sendo ele dividido em duas seções: <code>options</code> e <code>steps</code>.</p>
@@ -129,18 +128,18 @@ Para utilizar o serviço, envie uma requisição POST para o endpoint `/execute_
 <li><strong>Interpolação:</strong> <code>"text": "Olá, {$ref/nome_da_variavel}!"</code></li>
 </ul>
 <p>Essas variáveis devem ter sido definidas anteriormente através de um método.</p>
+<p>No retorno da API enviado ao usuário, estarão todas as variáveis salvas com seus respectivos valores.</p>
 <h4>Ignorar execução ou erros de passos</h4>
 <p>dentro dos argumentos de qualquer método pode ser adicionado os argumentos opcionais:</p>
 <ul>
-<li><strong><code>ignore_execution</code></strong>: Se <code>true</code>, o passo será completamente ignorado e não será executado.</li>
-<li><strong><code>ignore_error</code></strong>: Se <code>true</code>, o erro gerado durante a execução será ignorado, e a sequência continuará normalmente.</li>
+<li><strong><code>ignore_execution</code></strong>: Se <code>true</code>, o passo será completamente ignorado e não será executado. (False por padrão)</li>
+<li><strong><code>ignore_error</code></strong>: Se <code>true</code>, o erro gerado durante a execução será ignorado, e a sequência continuará normalmente. (False por padrão)</li>
 </ul>
 <p><strong>Exemplo:</strong></p>
 <pre><code>{
   "func": "click",
   "args": {
     "xpath": "//button[@id='continuar']",
-    "ignore_execution": false,
     "ignore_error": true
   }
 }
@@ -277,33 +276,6 @@ Para utilizar o serviço, envie uma requisição POST para o endpoint `/execute_
 }
 </code></pre>
 <hr>
-<h3><code>read</code></h3>
-<ul>
-<li><strong>Descrição:</strong> Salva em uma variável nomeada o texto encontrado em um elemento. Essa variável pode ser usado como parâmetro na função <code>insert</code> inserindo ela como <code>text</code> da seguinte forma <code>$ref/'nome da variável'</code>, e ao finalizar todas as ações fornecidas no json é retornado para o cliente uma lista com todas as variáveis salvas. </li>
-<li><strong>Argumentos:</strong>
-<ul>
-<li><code>xpath</code>: XPath do elemento.</li>
-<li><code>name</code>: Nome da variável.</li>
-</ul>
-</li>
-</ul>
-<p><strong>Exemplo:</strong></p>
-<pre><code>{
-  "func": "read",
-  "args": {
-    "xpath": "//p[@name='usuario']",
-    "name": "admin"
-  }
-},
-{
-  "func": "insert",
-  "args": {
-    "xpath": "//input[@name='usuario']",
-    "text": "$ref/admin"
-  }
-}
-</code></pre>
-<hr>
 <h3><code>captcha_solver</code></h3>
 <ul>
 <li><strong>Descrição:</strong> Resolve um CAPTCHA simples de imagem usando a API do <a href="https://2captcha.com/pt/" target="_blank" rel="noopener">2Captcha</a>. O código extraído da imagem é preenchido automaticamente no campo de input informado.<br>Caso <code>img_xpath</code> ou <code>input_xpath</code> não sejam fornecidos, o método tentará localizar e resolver automaticamente um CAPTCHA do tipo reCAPTCHA v2 na página.</li>
@@ -337,7 +309,7 @@ Para utilizar o serviço, envie uma requisição POST para o endpoint `/execute_
 <hr>
 <h3><code>save_file</code></h3>
 <ul>
-<li><strong>Descrição:</strong> Clica em um elemento da página que dispara o download de um arquivo. O arquivo será salvo em um diretório informado com um nome aleatório gerado automaticamente.</li>
+<li><strong>Descrição:</strong> Clica em um elemento da página que dispara o download de um arquivo. O arquivo será salvo em um diretório informado com um nome gerado aleatoriamente.</li>
 <li><strong>Argumentos:</strong>
 <ul>
 <li><code>xpath</code>: XPath do botão ou link que dispara o download.</li>
@@ -429,7 +401,7 @@ Para utilizar o serviço, envie uma requisição POST para o endpoint `/execute_
 <hr>
 <h3><code>read_attribute</code></h3>
 <ul>
-<li><strong>Descrição:</strong> Salva o valor de um atributo HTML em uma variável nomeada.</li>
+<li><strong>Descrição:</strong> Salva o valor de um atributo HTML em uma variável.</li>
 <li><strong>Argumentos:</strong>
 <ul>
 <li><code>xpath</code>: XPath do elemento.</li>
@@ -450,7 +422,7 @@ Para utilizar o serviço, envie uma requisição POST para o endpoint `/execute_
 <hr>
 <h3><code>confirm_popup</code></h3>
 <ul>
-<li><strong>Descrição:</strong> Aceita automaticamente qualquer popup de confirmação (diálogo) que aparecer na página, durante o tempo especificado pelo usuário. Este método <strong>não interrompe</strong> ou <strong>pausa</strong> o fluxo do script — ele continua executando normalmente enquanto escuta e trata os popups em segundo plano.</li>
+<li><strong>Descrição:</strong> Aceita automaticamente qualquer popup de confirmação (diálogo) que aparecer na página, durante o tempo especificado pelo usuário. Este método <strong>não interrompe</strong> o fluxo do script, a execução continua normalmente enquanto este método trata os popups em segundo plano.</li>
 <li><strong>Argumentos:</strong>
 <ul>
 <li><code>timeout</code> (int): Tempo total, em milissegundos, durante o qual a escuta ficará ativa para aceitar popups.</li>
@@ -507,7 +479,7 @@ Para utilizar o serviço, envie uma requisição POST para o endpoint `/execute_
 <li><strong>Argumentos:</strong>
 <ul>
 <li><code>methods</code>: Lista de métodos a serem executados em cada iteração.</li>
-<li><code>...</code>: Um ou mais pares no formato <code>"nome_da_variavel": [valores]</code>, contendo listas de valores que serão atribuídos a cada variável nas iterações.</li>
+<li><code>"nome":[valores]</code>: Um ou mais pares chave/valor, contendo listas de valores que serão atribuídos a cada variável nas iterações.</li>
 </ul>
 </li>
 </ul>
