@@ -1,0 +1,7 @@
+2captcha-python==1.5.1
+playwright==1.52.0
+playwright-stealth==1.0.6
+fastapi==0.115.12
+fastapi-cli==0.0.7
+uvicorn~=0.34.3
+requests~=2.32.4
