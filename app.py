@@ -9,6 +9,7 @@ import re
 from fastapi import FastAPI, Request, HTTPException
 from scrap import Scrap
 from datetime import datetime
+from data_validation import validate
 app = FastAPI()
 
 async def change_variables(data: any , scrapper: Scrap) -> any:
@@ -49,6 +50,11 @@ async def execute_scrap(request: Request) -> dict:
         dict: Resultado do scraping, incluindo variáveis lidas e arquivos salvos.
     """
     data = await request.json()
+    validated = validate(data)
+    
+    if not validated[0]:
+        raise HTTPException(status_code=422, detail=validated[1])
+    
     scrapper = Scrap(**data["options"])
     await scrapper.start()
     for step in data["steps"]:
