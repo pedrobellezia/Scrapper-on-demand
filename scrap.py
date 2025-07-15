@@ -19,18 +19,18 @@ import base64
 from datetime import datetime
 import json
 
-os.makedirs("logs", exist_ok=True)
-timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-log_filename = f"logs/{timestamp}.log"
-
-logging.basicConfig(
-    filename=log_filename,
-    filemode="a",
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    level=logging.ERROR
-)
-
-
+def _initialize_logger():
+    os.makedirs("logs", exist_ok=True)
+    timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    log_filename = f"logs/{timestamp}.log"
+    print(log_filename)
+    logging.basicConfig(
+        filename=log_filename,
+        filemode="a",
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        level=logging.ERROR,
+        force=True
+    )
 
 class Scrap:
     def __init__(self, **launch_options):
@@ -70,21 +70,32 @@ class Scrap:
                     result = await func(self, *args, **kwargs)
                     return result if result else None
             except Exception as e:
-                error_response = {
-                    "erro": str(e),
-                    "traceback": traceback.format_exc().splitlines(),
-                    "func": func.__name__,
-                    "params": kwargs
-                }
-                logging.error(f'Error_response:\n\n{json.dumps(error_response, indent=4, ensure_ascii=False)}')
-                return None if kwargs.get("ignore_error") else {
-                    "Code": 500,
-                    "error_type": type(e).__name__,
-                    "last_function":{
-                        "name": func.__name__,
-                        "args": kwargs,
+                if kwargs.get("ignore_error"):
+                    return None
+                else :
+                    _initialize_logger()
+                    error_response = {
+                        "erro": str(e),
+                        "traceback": traceback.format_exc().splitlines(),
+                        "func": func.__name__,
+                        "params": kwargs
                     }
-                }
+
+                    logging.error(f'Error_response:\n\n{json.dumps(error_response, indent=4, ensure_ascii=False)}')
+                    
+                    # Por alguma droga de motivo o playwright encapsula todos os erros numa mesma classe então não tem como pegar o tipo do erro com type.__name__
+                    if "SyntaxError" in e.message:
+                        error_type = "SyntaxError"
+                    else:
+                        error_type = type(e).__name__
+
+                    return {
+                        "error_type": error_type,
+                        "last_function":{
+                            "name": func.__name__,
+                            "args": kwargs,
+                        }
+                    }
         return wrapper
 
     async def _mekanism(self, data, iteration: int):
