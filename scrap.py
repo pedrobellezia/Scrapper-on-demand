@@ -65,9 +65,9 @@ class Scrap:
             Callable: Função decorada.
         """
         async def wrapper(self, *args, **kwargs):
-            try:                
+            try:
                 if not kwargs.get("ignore_execution"):
-                    result = await func(self, *args, **kwargs)                    
+                    result = await func(self, *args, **kwargs)
                     return result if result else None
             except Exception as e:
                 error_response = {
@@ -79,13 +79,14 @@ class Scrap:
                 logging.error(f'Error_response:\n\n{json.dumps(error_response, indent=4, ensure_ascii=False)}')
                 return None if kwargs.get("ignore_error") else {
                     "Code": 500,
+                    "error_type": type(e).__name__,
                     "last_function":{
                         "name": func.__name__,
                         "args": kwargs,
                     }
                 }
         return wrapper
-    
+
     async def _mekanism(self, data, iteration: int):
         """
         Substitui variáveis do tipo %var/ e {%var/} por seus valores atuais na iteração.
@@ -110,7 +111,7 @@ class Scrap:
                     var_value = self.iter_args.get(var_name[5:])[iteration]
                     data = re.sub(r"\{\s*%var/[^}]+\s*\}", str(var_value), data)
         return data
-    
+
     async def batch_mode(self, methods: dict, **kwargs):
         """
         Executa métodos em batch, iterando sobre listas de variáveis fornecidas.
@@ -123,7 +124,7 @@ class Scrap:
         """
         self.iter_args = deepcopy(kwargs)
         for i in range(len(list(iter(kwargs.values()))[0])):
-            for items in methods:                
+            for items in methods:
                 args = deepcopy(items["args"])
                 args = await self._mekanism(args, i)
                 metodo = getattr(self, items["func"])
@@ -147,9 +148,9 @@ class Scrap:
                         dialog = await dialog_info.value
                         await dialog.accept()
                 except Exception:
-                    await asyncio.sleep(0.1) 
+                    await asyncio.sleep(0.1)
         asyncio.create_task(_confirm_loop())
-    
+
     @scrap_wrapper
     async def backspace(self, times: int, **wrapperkwargs):
         """
@@ -160,9 +161,9 @@ class Scrap:
         """
         for _ in range(times):
             await self.page.keyboard.press("Backspace")
-        
+
     @scrap_wrapper
-    async def create_variables(self, **data: dict):        
+    async def create_variables(self, **data: dict):
         """
         Cria variáveis internas a partir de pares chave/valor fornecidos.
 
@@ -171,7 +172,7 @@ class Scrap:
         """
         for key, value in data.items():
             self.ref[key] = value
-    
+
     @scrap_wrapper
     async def go_to(self, url: str, **wrapperkwargs):
         """
@@ -180,7 +181,7 @@ class Scrap:
         Args:
             url (str): URL de destino.
         """
-        await self.page.goto(url) 
+        await self.page.goto(url)
 
     @staticmethod
     async def wait(seconds: float, **wrapperkwargs):
@@ -191,7 +192,7 @@ class Scrap:
             seconds (float): Tempo de espera em segundos.
         """
         await asyncio.sleep(seconds)
-    
+
     @scrap_wrapper
     async def read_attribute(self, xpath: str, attribute: str, name: str, **wrapperkwargs):
         """
@@ -206,7 +207,7 @@ class Scrap:
         if attr_value.startswith("data:image/png;base64, "):
             attr_value = attr_value.split("data:image/png;base64, ")[1]
         self.ref[name] =  attr_value
-    
+
     @scrap_wrapper
     async def read_inner_text(self, name: str, xpath: str = None, **wrapperkwargs):
         """
@@ -229,7 +230,7 @@ class Scrap:
             text (str): Texto a ser inserido.
         """
         await self.page.locator(xpath).fill(text)
-    
+
     @scrap_wrapper
     async def click(self, xpath: str, **wrapperkwargs):
         """
@@ -239,7 +240,7 @@ class Scrap:
             xpath (str): XPath do elemento.
         """
         await self.page.locator(xpath).click()
-    
+
     @scrap_wrapper
     async def select_option(self, xpath: str, options_list: list, **wrapperkwargs):
         """
@@ -250,7 +251,7 @@ class Scrap:
             options_list (list): Lista de valores/labels a selecionar.
         """
         await self.page.locator(xpath).select_option(options_list)
-    
+
     @scrap_wrapper
     async def select(self, xpath: str, **wrapperkwargs):
         """
@@ -268,7 +269,7 @@ class Scrap:
                 "xpath": xpath,
                 "url": self.page.url,
             }
-    
+
     @scrap_wrapper
     async def save_file(self, xpath: str, path: str, **wrapperkwargs):
         """
@@ -292,7 +293,7 @@ class Scrap:
         await file.save_as(full_path)
 
         self.files_saved.append({'path': str(full_path)})
-    
+
     @scrap_wrapper
     async def page_to_pdf(self, path: str, **wrapperkwargs):
         """
@@ -304,7 +305,7 @@ class Scrap:
         name = os.urandom(16).hex() + ".pdf"
         path = os.path.join(path, name)
         await self.page.pdf(path=path, format="A4")
-    
+
     @scrap_wrapper
     async def set_timeout(self, timeout: int, **wrapperkwargs):
         """
@@ -315,8 +316,7 @@ class Scrap:
         """
         self.page.set_default_timeout(timeout)
         self.context.set_default_timeout(timeout)
-   
-    
+
     async def _img_to_base64(self, xpath: str):
         """
         Converte uma imagem localizada por XPath em base64.
@@ -333,7 +333,7 @@ class Scrap:
             img_bytes = requests.get(img_src).content
             img_src = base64.b64encode(img_bytes).decode('utf-8')
         return img_src
-    
+
     async def _replace_text(self, text: str):
         """
         Substitui $ref/variavel pelo valor salvo em self.ref.
@@ -357,11 +357,11 @@ class Scrap:
         """
         async with self.context.expect_page() as new_page_info:
             await self.page.locator(xpath).click()
-        
+
         self.page = await new_page_info.value
         await self.page.wait_for_load_state()
-    
-    @scrap_wrapper 
+
+    @scrap_wrapper
     async def execute_script(self, script: str, **wrapperkwargs):
         """
         Executa um script JavaScript na página atual.
@@ -370,7 +370,7 @@ class Scrap:
             script (str): Código JavaScript a ser executado.
         """
         await self.page.evaluate(script)
-    
+
     @scrap_wrapper
     async def captcha_solver(self, api_key: str, img_xpath: str = None, input_xpath: str = None, **wrapperkwargs):
         """
@@ -396,7 +396,7 @@ class Scrap:
             img64 = await self._img_to_base64(img_xpath)
             result = solver.normal(img64, caseSensitive=1)['code']
             await self.page.locator(input_xpath).fill(result)
-    
+
     @scrap_wrapper
     async def request_pdf(self, path: str, url: str = '', **wrapperkwargs):
         """
@@ -417,7 +417,7 @@ class Scrap:
                 f.write(await response.body())
         else:
             return {"error": f"Falha ao baixar PDF: {response.status}"}
-    
+
     @scrap_wrapper
     async def wait_url_change(self, timeout: int, **wrapperkwargs):
         """
