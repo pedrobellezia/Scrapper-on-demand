@@ -6,3 +6,4 @@ fastapi-cli==0.0.7
 uvicorn~=0.34.3
 requests~=2.32.4
 pydantic==2.11.7
+pytz==2025.2

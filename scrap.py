@@ -33,14 +33,16 @@ def _initialize_logger():
     )
 
 class Scrap:
-    def __init__(self, **launch_options):
+    def __init__(self, browser_session=None, **launch_options):
         """
         Inicializa a instância do Scrap com as opções de lançamento do navegador.
 
         Args:
             **launch_options: Opções para o navegador Playwright.
+            browser_session: Caminho para o JSON de sessão.
         """
         self.launch_options = launch_options
+        self.browser_session = browser_session
         self.ref: dict = {}
         self.files_saved: list = []
         self.iter_args: dict = {}
@@ -51,7 +53,12 @@ class Scrap:
         """
         self.playwright = await async_playwright().start()
         self.browser = await self.playwright.chromium.launch(**self.launch_options)
-        self.context = await self.browser.new_context()
+
+        if self.browser_session:
+            self.context = await self.browser.new_context(storage_state=self.browser_session)
+        else:
+            self.context = await self.browser.new_context()
+
         self.page = await self.context.new_page()
 
     @staticmethod
@@ -83,15 +90,12 @@ class Scrap:
 
                     logging.error(f'Error_response:\n\n{json.dumps(error_response, indent=4, ensure_ascii=False)}')
                     
-                    # Por alguma droga de motivo o playwright encapsula todos os erros numa mesma classe então não tem como pegar o tipo do erro com type.__name__
-                    if "SyntaxError" in e.message:
-                        error_type = "SyntaxError"
-                    else:
-                        error_type = type(e).__name__
+                    error_type = type(e).__name__
 
                     return {
-                        "error_type": error_type,
-                        "last_function":{
+                        "status_code": 500,
+                        "message": error_type,
+                        "details":{
                             "name": func.__name__,
                             "args": kwargs,
                         }
@@ -144,7 +148,7 @@ class Scrap:
                     return resultado
 
     @scrap_wrapper
-    async def confirm_popup(self, timeout: int, **wrapperkwargs):
+    async def confirm_popup(self, timeout: int, **kwargs):
         """
         Aceita automaticamente popups de confirmação durante o tempo passado.
 
@@ -163,7 +167,7 @@ class Scrap:
         asyncio.create_task(_confirm_loop())
 
     @scrap_wrapper
-    async def backspace(self, times: int, **wrapperkwargs):
+    async def backspace(self, times: int, **kwargs):
         """
         Pressiona a tecla Backspace repetidamente.
 
@@ -185,7 +189,7 @@ class Scrap:
             self.ref[key] = value
 
     @scrap_wrapper
-    async def go_to(self, url: str, **wrapperkwargs):
+    async def go_to(self, url: str, **kwargs):
         """
         Navega até a URL especificada.
 
@@ -195,7 +199,7 @@ class Scrap:
         await self.page.goto(url)
 
     @staticmethod
-    async def wait(seconds: float, **wrapperkwargs):
+    async def wait(seconds: float, **kwargs):
         """
         Aguarda o tempo passado em segundos.
 
@@ -205,7 +209,7 @@ class Scrap:
         await asyncio.sleep(seconds)
 
     @scrap_wrapper
-    async def read_attribute(self, xpath: str, attribute: str, name: str, **wrapperkwargs):
+    async def read_attribute(self, xpath: str, attribute: str, name: str, **kwargs):
         """
         Lê o valor de um atributo HTML e salva em uma variável nomeada.
 
@@ -220,7 +224,7 @@ class Scrap:
         self.ref[name] =  attr_value
 
     @scrap_wrapper
-    async def read_inner_text(self, name: str, xpath: str = None, **wrapperkwargs):
+    async def read_inner_text(self, name: str, xpath: str = None, **kwargs):
         """
         Lê o texto interno de um elemento HTML e salva em uma variável.
 
@@ -232,7 +236,7 @@ class Scrap:
         self.ref[name] = text
 
     @scrap_wrapper
-    async def insert(self, xpath: str, text: str, **wrapperkwargs):
+    async def insert(self, xpath: str, text: str, **kwargs):
         """
         Preenche um campo de texto localizado por XPath.
 
@@ -240,20 +244,27 @@ class Scrap:
             xpath (str): XPath do campo de texto.
             text (str): Texto a ser inserido.
         """
-        await self.page.locator(xpath).fill(text)
+        if kwargs.get("iframe"):
+            await self.page.frame_locator(kwargs.get("iframe")).locator(xpath).fill(text)
+        else:
+            await self.page.locator(xpath).fill(text)
 
     @scrap_wrapper
-    async def click(self, xpath: str, **wrapperkwargs):
+    async def click(self, xpath: str, **kwargs):
         """
         Clica em um elemento da página localizado por XPath.
 
         Args:
             xpath (str): XPath do elemento.
         """
-        await self.page.locator(xpath).click()
+        print(kwargs.get("iframe"))
+        if kwargs.get("iframe"):
+            await self.page.frame_locator(kwargs.get("iframe")).locator(xpath).click()
+        else:        
+            await self.page.locator(xpath).click()
 
     @scrap_wrapper
-    async def select_option(self, xpath: str, options_list: list, **wrapperkwargs):
+    async def select_option(self, xpath: str, options_list: list, **kwargs):
         """
         Seleciona uma ou mais opções de um <select> usando label ou value.
 
@@ -264,7 +275,7 @@ class Scrap:
         await self.page.locator(xpath).select_option(options_list)
 
     @scrap_wrapper
-    async def select(self, xpath: str, **wrapperkwargs):
+    async def select(self, xpath: str, **kwargs):
         """
         Verifica a existência de um elemento específico.
 
@@ -272,17 +283,24 @@ class Scrap:
             xpath (str): XPath do elemento.
         Returns:
             dict | None: Dicionário de erro se não encontrado, None caso contrário.
-        """
-        if await self.page.locator(xpath).count() == 0:
-            return{
-                "erro": "Elemento não encontrado",
-                "func": "select",
-                "xpath": xpath,
-                "url": self.page.url,
+        """        
+        if kwargs.get("iframe"):            
+            locator = self.page.frame_locator(kwargs.get("iframe")).locator(xpath)
+        else:
+            locator = self.page.locator(xpath)
+        if await locator.count() == 0:
+            return {
+                "status_code": 404,
+                "message": "Elemento não encontrado",
+                "details": {
+                    "func": "select",
+                    "xpath": xpath,
+                    "url": self.page.url,
+                }
             }
 
     @scrap_wrapper
-    async def save_file(self, xpath: str, path: str, **wrapperkwargs):
+    async def save_file(self, xpath: str, path: str, **kwargs):
         """
         Clica em um elemento que dispara download e salva o arquivo em um diretório.
 
@@ -293,7 +311,7 @@ class Scrap:
         os.makedirs(path, exist_ok=True)
 
         async with self.page.expect_download() as download_info:
-            await self.page.locator(xpath).click()
+            await self.click(xpath, **kwargs)
 
         file = await download_info.value
 
@@ -303,10 +321,10 @@ class Scrap:
         full_path = os.path.join(path, file_name)
         await file.save_as(full_path)
 
-        self.files_saved.append({'path': str(full_path)})
+        self.files_saved.append({'path': str(file_name)})
 
     @scrap_wrapper
-    async def page_to_pdf(self, path: str, **wrapperkwargs):
+    async def page_to_pdf(self, path: str, **kwargs):
         """
         Imprime a página atual em PDF e salva no caminho passado.
 
@@ -316,9 +334,10 @@ class Scrap:
         name = os.urandom(16).hex() + ".pdf"
         path = os.path.join(path, name)
         await self.page.pdf(path=path, format="A4")
+        self.files_saved.append({'path': str(name)})
 
     @scrap_wrapper
-    async def set_timeout(self, timeout: int, **wrapperkwargs):
+    async def set_timeout(self, timeout: int, **kwargs):
         """
         Define o timeout padrão para todas as ações.
 
@@ -337,7 +356,16 @@ class Scrap:
         Returns:
             str: Imagem codificada em base64.
         """
-        img_src = await self.page.locator(xpath).get_attribute("src")
+        for _ in range(3):
+            img_src = await self.page.locator(xpath).get_attribute("src")
+            if img_src is None:
+                await asyncio.sleep(1)
+                continue
+            else:
+                break
+        else:
+            raise Exception("Imagem não encontrada no XPath fornecido.")            
+                
         if img_src.startswith("data:image"):
             img_src = img_src.split("base64,")[-1].strip()
         else:
@@ -359,7 +387,7 @@ class Scrap:
         return text
 
     @scrap_wrapper
-    async def switch_page(self, xpath: str, **wrapperkwargs):
+    async def switch_page(self, xpath: str, **kwargs):
         """
         Clica em um elemento que abre nova página/aba e troca o contexto para ela.
 
@@ -367,13 +395,13 @@ class Scrap:
             xpath (str): XPath do elemento.
         """
         async with self.context.expect_page() as new_page_info:
-            await self.page.locator(xpath).click()
+            await self.click(xpath)
 
         self.page = await new_page_info.value
         await self.page.wait_for_load_state()
 
     @scrap_wrapper
-    async def execute_script(self, script: str, **wrapperkwargs):
+    async def execute_script(self, script: str, **kwargs):
         """
         Executa um script JavaScript na página atual.
 
@@ -383,7 +411,7 @@ class Scrap:
         await self.page.evaluate(script)
 
     @scrap_wrapper
-    async def captcha_solver(self, api_key: str, img_xpath: str = None, input_xpath: str = None, **wrapperkwargs):
+    async def captcha_solver(self, api_key: str, img_xpath: str = None, input_xpath: str = None, **kwargs):
         """
         Resolve CAPTCHA usando a API 2Captcha. Suporta modo automático e manual.
 
@@ -409,7 +437,7 @@ class Scrap:
             await self.page.locator(input_xpath).fill(result)
 
     @scrap_wrapper
-    async def request_pdf(self, path: str, url: str = '', **wrapperkwargs):
+    async def request_pdf(self, path: str, url: str = '', **kwargs):
         """
         Baixa a página como PDF caso a URL aponte para um PDF. Se não informado, usa a URL atual.
 
@@ -427,10 +455,13 @@ class Scrap:
             with open(file_path, "wb") as f:
                 f.write(await response.body())
         else:
-            return {"error": f"Falha ao baixar PDF: {response.status}"}
+            return {
+                "status_code": response.status,
+                "message": f"Falha ao baixar PDF: {response.status}"
+            }
 
     @scrap_wrapper
-    async def wait_url_change(self, timeout: int, **wrapperkwargs):
+    async def wait_url_change(self, timeout: int, **kwargs):
         """
         Aguarda a mudança da URL atual.
 
