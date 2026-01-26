@@ -15,6 +15,7 @@ import os
 import asyncio
 from playwright.async_api import async_playwright, expect
 import base64
+from typing import Optional
 
 
 
@@ -134,24 +135,15 @@ class Scrap:
                     return resultado
 
     @scrap_wrapper
-    async def confirm_popup(self, timeout: int, **kwargs):
-        """
-        Aceita automaticamente popups de confirmação durante o tempo passado.
-
-        Args:
-            timeout (int): Tempo total em milissegundos para escutar popups.
-        """
-        async def _confirm_loop():
-            end_time = asyncio.get_event_loop().time() + timeout
-            while asyncio.get_event_loop().time() < end_time:
-                try:
-                    async with self.page.expect_event("dialog", timeout=1000) as dialog_info:
-                        dialog = await dialog_info.value
-                        await dialog.accept()
-                except Exception:
-                    await asyncio.sleep(0.1)
-        asyncio.create_task(_confirm_loop())
-
+    async def confirm_popup(self, choice: str, value: Optional[str] = None,**kwargs):
+        async def handleDialog(dialog):
+            match choice:
+                case "accept":
+                    return await dialog.accept(value)
+                case "dismiss":
+                    return await dialog.dismiss()
+        self.page.on("dialog", handleDialog)
+        
     @scrap_wrapper
     async def backspace(self, times: int, **kwargs):
         """
