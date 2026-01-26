@@ -10,27 +10,13 @@ from twocaptcha import TwoCaptcha
 import logging
 import re
 from copy import deepcopy
-import traceback
 import requests
 import os
 import asyncio
 from playwright.async_api import async_playwright, expect
 import base64
-from datetime import datetime
-import json
 
-def _initialize_logger():
-    os.makedirs("logs", exist_ok=True)
-    timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-    log_filename = f"logs/{timestamp}.log"
-    print(log_filename)
-    logging.basicConfig(
-        filename=log_filename,
-        filemode="a",
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        level=logging.ERROR,
-        force=True
-    )
+
 
 class Scrap:
     def __init__(self, browser_session=None, **launch_options):
@@ -80,16 +66,16 @@ class Scrap:
                 if kwargs.get("ignore_error"):
                     return None
                 else :
-                    _initialize_logger()
                     error_response = {
                         "erro": str(e),
-                        "traceback": traceback.format_exc().splitlines(),
                         "func": func.__name__,
                         "params": kwargs
                     }
 
-                    logging.error(f'Error_response:\n\n{json.dumps(error_response, indent=4, ensure_ascii=False)}')
-                    
+                    print("começando loggin")
+                    logging.error(f'Error_response: {error_response}')
+                    print("terminando loggin")
+
                     error_type = type(e).__name__
 
                     return {

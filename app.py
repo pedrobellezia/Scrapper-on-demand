@@ -6,19 +6,33 @@ utilizando a classe Scrap para automação de navegador.
 """
 
 import re
+from typing import Any
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from scrap import Scrap
 from datetime import datetime
 from data_validation import validate
 import pytz
+import os
+import logging
 app = FastAPI()
 tz = pytz.timezone("America/Sao_Paulo")
 
 # Montar pasta estática para servir PDFs
 app.mount("/pdf", StaticFiles(directory="static/pdf"), name="cnd")
 
-async def change_variables(data: any , scrapper: Scrap) -> any:
+os.makedirs("logs", exist_ok=True)
+timestamp = datetime.now().strftime("%d-%m-%Y")
+log_filename = f"logs/{timestamp}.log"
+logging.basicConfig(
+    filename=log_filename,
+    filemode="a",
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    level=logging.ERROR,
+    force=True
+)
+
+async def change_variables(data: Any , scrapper: Scrap) -> Any:
     """
     Substitui variáveis do tipo $ref/ e {$ref/} por seus valores salvos no scrapper.
     Funciona recursivamente para strings, listas e dicionários.
@@ -34,8 +48,10 @@ async def change_variables(data: any , scrapper: Scrap) -> any:
         if data.startswith("$ref/"):
             data = await scrapper._replace_text(data)
         elif "{$ref/" in data:
-            text = await scrapper._replace_text(re.search("\{\s*\$ref\/[^}]+\s*\}", data).group(0)[1:-1])
-            data = re.sub("\{\s*\$ref\/[^}]+\s*\}", text, data)
+            match = re.search(r"\{\s*\$ref\/[^}]+\s*\}", data)
+            if match:
+                text = await scrapper._replace_text(match.group(0)[1:-1])
+                data = re.sub(r"\{\s*\$ref\/[^}]+\s*\}", text, data)
     elif isinstance(data, list):
         data = [await change_variables(item, scrapper) for item in data]
     elif isinstance(data, dict):
@@ -56,10 +72,12 @@ async def execute_scrap(request: Request) -> dict:
         dict: Resultado do scraping, incluindo variáveis lidas e arquivos salvos.
     """
     data = await request.json()
-    validated = validate(data)
+    success, data = validate(data)
     
-    if not validated[0]:
-        raise HTTPException(status_code=422, detail=validated[1])
+    if not success:
+        logging.error(f'Error_response: {data}')
+        raise HTTPException(status_code=422, detail=data)
+
     
     scrapper = Scrap(browser_session=data.get("browser_session"), **data["options"])
     await scrapper.start()
@@ -90,4 +108,4 @@ if __name__ == "__main__":
     """
     import uvicorn
     print("Starting FastAPI app...")
-    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=False)
+    uvicorn.run("app:app", host="0.0.0.0", port=5001, reload=False)

@@ -14,7 +14,7 @@ dist/
 build/
 
 # Logs
-logs/
+logs/*
 *.log
 
 # VSCode/PyCharm
