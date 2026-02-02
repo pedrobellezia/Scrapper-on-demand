@@ -235,7 +235,6 @@ class Scrap:
         Args:
             xpath (str): XPath do elemento.
         """
-        print(kwargs.get("iframe"))
         if kwargs.get("iframe"):
             await self.page.frame_locator(kwargs.get("iframe")).locator(xpath).click()
         else:        
@@ -312,18 +311,7 @@ class Scrap:
         name = os.urandom(16).hex() + ".pdf"
         path = os.path.join(path, name)
         await self.page.pdf(path=path, format="A4")
-        self.files_saved.append({'path': str(name)})
-
-    @scrap_wrapper
-    async def set_timeout(self, timeout: int, **kwargs):
-        """
-        Define o timeout padrão para todas as ações.
-
-        Args:
-            timeout (int): Tempo de timeout em milissegundos.
-        """
-        self.page.set_default_timeout(timeout)
-        self.context.set_default_timeout(timeout)
+        self.files_saved.append({'path': str(name)})    
 
     async def _img_to_base64(self, xpath: str):
         """

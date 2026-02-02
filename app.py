@@ -78,9 +78,15 @@ async def execute_scrap(request: Request) -> dict:
         logging.error(f'Error_response: {data}')
         raise HTTPException(status_code=422, detail=data)
 
-    
+    timeout = data.pop("timeout")
+
     scrapper = Scrap(browser_session=data.get("browser_session"), **data["options"])
     await scrapper.start()
+    
+    if timeout:
+        scrapper.page.set_default_timeout(timeout)
+        scrapper.context.set_default_timeout(timeout)
+
     for step in data["steps"]:
         print(f"Metodo: {step['func']}", flush=True)
         print(f"começando em: {datetime.now(tz).strftime('[%d/%m/%y %H:%M:%S]')}", flush=True)  
