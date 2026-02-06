@@ -78,7 +78,7 @@ async def execute_scrap(request: Request) -> dict:
         logging.error(f'Error_response: {data}')
         raise HTTPException(status_code=422, detail=data)
 
-    timeout = data.pop("timeout")
+    timeout = data.pop("timeout", None)
 
     scrapper = Scrap(browser_session=data.get("browser_session"), **data["options"])
     await scrapper.start()
