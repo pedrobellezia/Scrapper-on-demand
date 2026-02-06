@@ -397,6 +397,9 @@ class Scrap:
                 "(el) => el.style.display = 'block'"
             )
             await self.page.locator("//textarea[@id='g-recaptcha-response']").fill(token)
+            await self.page.locator("//textarea[@id='g-recaptcha-response']").evaluate(
+                "(el) => el.style.display = 'none'"
+            )
         else:
             img64 = await self._img_to_base64(img_xpath)
             result = solver.normal(img64, caseSensitive=1)['code']
