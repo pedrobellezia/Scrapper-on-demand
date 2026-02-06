@@ -31,3 +31,6 @@ logs/*
 
 # Outros
 .DS_Store
+
+# Ignorar arquivos PDF gerados
+/static/pdf/*

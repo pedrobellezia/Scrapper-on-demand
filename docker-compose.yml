@@ -1,7 +1,7 @@
 services:
   web:
     build: .
-    container_name: mekanism_API
+    container_name: scrapper-api
     ports:
       - "5000:5000"
     volumes:
