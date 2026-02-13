@@ -5,6 +5,7 @@ Este módulo expõe um endpoint FastAPI para executar rotinas de scraping que op
 utilizando a classe Scrap para automação de navegador.
 """
 
+from playwright.async_api import async_playwright
 import re
 from typing import Any
 from fastapi import FastAPI, Request, HTTPException
@@ -15,8 +16,32 @@ from data_validation import validate
 import pytz
 import os
 import logging
-app = FastAPI()
+from contextlib import asynccontextmanager
+
 tz = pytz.timezone("America/Sao_Paulo")
+
+playwright = None
+browser = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global playwright, browser
+    playwright = await async_playwright().start()
+    browser = await playwright.chromium.launch(
+        args=[
+            "--disable-dev-shm-usage",
+            "--disable-blink-features=AutomationControlled",
+            "--no-sandbox",
+            "--disable-infobars"
+        ],
+        slow_mo=1000,
+        headless=False
+    )
+    yield
+    await browser.close()
+    await playwright.stop()
+
+app = FastAPI(lifespan=lifespan)
 
 # Montar pasta estática para servir PDFs
 app.mount("/pdf", StaticFiles(directory="static/pdf"), name="cnd")
@@ -31,6 +56,7 @@ logging.basicConfig(
     level=logging.ERROR,
     force=True
 )
+
 
 async def change_variables(data: Any , scrapper: Scrap) -> Any:
     """
@@ -79,8 +105,10 @@ async def execute_scrap(request: Request) -> dict:
         raise HTTPException(status_code=422, detail=data)
 
     timeout = data.pop("timeout", None)
+    print(timeout, flush=True)
 
-    scrapper = Scrap(browser_session=data.get("browser_session"), **data["options"])
+    # Usa o browser global
+    scrapper = Scrap(browser=browser, browser_session=data.get("browser_session"))
     await scrapper.start()
     
     if timeout:

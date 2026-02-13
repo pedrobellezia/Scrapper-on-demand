@@ -20,26 +20,36 @@ from typing import Optional
 
 
 class Scrap:
-    def __init__(self, browser_session=None, **launch_options):
+    def __init__(self, browser=None, browser_session=None, **launch_options):
         """
         Inicializa a instância do Scrap com as opções de lançamento do navegador.
 
         Args:
-            **launch_options: Opções para o navegador Playwright.
+            browser: Instância de browser já criada (opcional).
             browser_session: Caminho para o JSON de sessão.
+            **launch_options: Opções para o navegador Playwright (usado apenas se browser não for fornecido).
         """
+        self.external_browser = browser
         self.launch_options = launch_options
         self.browser_session = browser_session
         self.ref: dict = {}
         self.files_saved: list = []
         self.iter_args: dict = {}
+        self.playwright = None
+        self.browser = None
 
     async def start(self):
         """
-        Inicializa o Playwright, o navegador e a página.
+        Inicializa o context e a page.
+        Se um browser externo for fornecido, usa ele. Caso contrário, cria um novo.
         """
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(**self.launch_options)
+        if self.external_browser:
+            # Usa o browser fornecido (global)
+            self.browser = self.external_browser
+        else:
+            # Cria um novo browser (para compatibilidade)
+            self.playwright = await async_playwright().start()
+            self.browser = await self.playwright.chromium.launch(**self.launch_options)
 
         if self.browser_session:
             self.context = await self.browser.new_context(storage_state=self.browser_session)
@@ -442,8 +452,15 @@ class Scrap:
 
     async def close(self):
         """
-        Encerra o contexto, o navegador e o Playwright.
+        Encerra o contexto e a page.
+        Só fecha o browser e playwright se foram criados internamente.
         """
         await self.context.close()
-        await self.browser.close()
-        await self.playwright.stop()
+        
+        # Só fecha o browser se ele foi criado internamente (não é externo)
+        if not self.external_browser and self.browser:
+            await self.browser.close()
+        
+        # Só para o playwright se foi iniciado internamente
+        if self.playwright:
+            await self.playwright.stop()

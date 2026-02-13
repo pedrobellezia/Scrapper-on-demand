@@ -25,16 +25,6 @@ class StepFunc(str, Enum):
     request_pdf = "request_pdf"
     wait_url_change = "wait_url_change"
 
-
-class Options(BaseModel):
-    headless: StrictBool
-    slow_mo: StrictInt
-    args: List[Any]
-
-    class Config:
-        extra = "forbid"
-
-
 class Step(BaseModel):
     func: StepFunc
     args: dict[str, Any]
@@ -44,10 +34,9 @@ class Step(BaseModel):
 
 
 class DataRequest(BaseModel):
-    options: Options
+    timeout: Optional[int] = None
     steps: list[Step]
     browser_session: Optional[dict] = None
-
     class Config:
         extra = "forbid"
 
