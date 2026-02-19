@@ -333,8 +333,8 @@ class Scrap:
             str: Imagem codificada em base64.
         """
         for _ in range(3):
-            img_src = await self.page.locator(xpath).get_attribute("src")
-            if img_src is None:
+            locator = self.page.locator(xpath)
+            if await locator.count() == 0:
                 await asyncio.sleep(1)
                 continue
             else:
@@ -342,16 +342,14 @@ class Scrap:
         else:
             raise Exception("Imagem não encontrada no XPath fornecido.")            
                 
-        if img_src.startswith("data:image"):
+        img_src = await locator.get_attribute("src")
+        
+        if img_src and img_src.startswith("data:image"):
             img_src = img_src.split("base64,")[-1].strip()
         else:
-            if not img_src.startswith(("http://", "https://")):
-                from urllib.parse import urljoin
-                page_url = self.page.url
-                img_src = urljoin(page_url, img_src)
-            
-            img_bytes = requests.get(img_src).content
-            img_src = base64.b64encode(img_bytes).decode('utf-8')
+            screenshot_bytes = await locator.screenshot()
+            img_src = base64.b64encode(screenshot_bytes).decode('utf-8')
+        
         return img_src
 
     async def _replace_text(self, text: str):
