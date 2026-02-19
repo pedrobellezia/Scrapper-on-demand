@@ -345,6 +345,11 @@ class Scrap:
         if img_src.startswith("data:image"):
             img_src = img_src.split("base64,")[-1].strip()
         else:
+            if not img_src.startswith(("http://", "https://")):
+                from urllib.parse import urljoin
+                page_url = self.page.url
+                img_src = urljoin(page_url, img_src)
+            
             img_bytes = requests.get(img_src).content
             img_src = base64.b64encode(img_bytes).decode('utf-8')
         return img_src
