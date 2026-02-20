@@ -17,15 +17,18 @@ import pytz
 import os
 import logging
 from contextlib import asynccontextmanager
+import asyncio
 
 tz = pytz.timezone("America/Sao_Paulo")
 
 playwright = None
 browser = None
+semaphore = None  
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global playwright, browser
+    global playwright, browser, semaphore
+    semaphore = asyncio.Semaphore(3)  
     playwright = await async_playwright().start()
     browser = await playwright.chromium.launch(
         args=[
@@ -96,6 +99,13 @@ async def execute_scrap(request: Request) -> dict:
 
     Returns:
         dict: Resultado do scraping, incluindo variáveis lidas e arquivos salvos.
+    """
+    async with semaphore:
+        return await _execute_scrap_internal(request)
+
+async def _execute_scrap_internal(request: Request) -> dict:
+    """
+    Lógica interna de execução de scraping (controlada pelo semáforo).
     """
     data = await request.json()
     success, data = validate(data)
