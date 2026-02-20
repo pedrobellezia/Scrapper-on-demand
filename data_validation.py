@@ -1,8 +1,8 @@
-from typing import Any, List
-from pydantic import BaseModel, StrictBool, StrictInt, ValidationError
+from typing import Any
+from pydantic import BaseModel, ValidationError
 from enum import Enum
 from typing import Optional
-
+import log_config
 
 class StepFunc(str, Enum):
     confirm_popup = "confirm_popup"
@@ -45,10 +45,24 @@ class DataRequest(BaseModel):
 
 def validate(data):
     try:
-        return True, DataRequest(**data).model_dump()
+        validated_data = DataRequest(**data).model_dump()
+        return True, {
+            "status": "success",
+            "data": validated_data
+        }
     except ValidationError as e:
+        error_details = []
+        for error in e.errors():
+            error_details.append({
+                "field": ".".join(str(loc) for loc in error["loc"]),
+                "type": error["type"],
+                "message": error["msg"],
+                "input": error.get("input")
+            })
+
         return False, {
-            "loc": e.errors()[0]["loc"],
-            "message": e.errors()[0]["msg"]
-            } 
-        
+            "status": "error",
+            "error_count": len(e.errors()),
+            "details": error_details
+        }
+

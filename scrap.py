@@ -1,34 +1,20 @@
-"""
-scrap.py
-
-Módulo para automação de tarefas web utilizando Playwright e 2Captcha.
-Inclui funcionalidades para navegação, manipulação de elementos, download de arquivos,
-resolução de CAPTCHAs, logging de erros, execução em batch e mais.
-
-"""
 from twocaptcha import TwoCaptcha
 import logging
 import re
 from copy import deepcopy
-import requests
 import os
 import asyncio
 from playwright.async_api import async_playwright, expect
 import base64
 from typing import Optional
+import log_config
+
+logger = logging.getLogger(__name__)
 
 
 
 class Scrap:
     def __init__(self, browser=None, browser_session=None, **launch_options):
-        """
-        Inicializa a instância do Scrap com as opções de lançamento do navegador.
-
-        Args:
-            browser: Instância de browser já criada (opcional).
-            browser_session: Caminho para o JSON de sessão.
-            **launch_options: Opções para o navegador Playwright (usado apenas se browser não for fornecido).
-        """
         self.external_browser = browser
         self.launch_options = launch_options
         self.browser_session = browser_session
@@ -39,15 +25,9 @@ class Scrap:
         self.browser = None
 
     async def start(self):
-        """
-        Inicializa o context e a page.
-        Se um browser externo for fornecido, usa ele. Caso contrário, cria um novo.
-        """
         if self.external_browser:
-            # Usa o browser fornecido (global)
             self.browser = self.external_browser
         else:
-            # Cria um novo browser (para compatibilidade)
             self.playwright = await async_playwright().start()
             self.browser = await self.playwright.chromium.launch(**self.launch_options)
 
@@ -60,14 +40,6 @@ class Scrap:
 
     @staticmethod
     def scrap_wrapper(func):
-        """
-        Decorador para tratamento de erros e controle de execução dos métodos Scrap.
-
-        Args:
-            func (Callable): Função a ser decorada.
-        Returns:
-            Callable: Função decorada.
-        """
         async def wrapper(self, *args, **kwargs):
             try:
                 if not kwargs.get("ignore_execution"):
@@ -83,9 +55,7 @@ class Scrap:
                         "params": kwargs
                     }
 
-                    print("começando loggin")
-                    logging.error(f'Error_response: {error_response}')
-                    print("terminando loggin")
+                    logger.error(f'Erro na execução: {error_response}')
 
                     error_type = type(e).__name__
 
@@ -100,15 +70,6 @@ class Scrap:
         return wrapper
 
     async def _mekanism(self, data, iteration: int):
-        """
-        Substitui variáveis do tipo %var/ e {%var/} por seus valores atuais na iteração.
-
-        Args:
-            data (Any): Estrutura de dados a ser processada.
-            iteration (int): Índice da iteração atual.
-        Returns:
-            Any: Estrutura de dados com variáveis substituídas.
-        """
         if isinstance(data, dict):
             return {k: await self._mekanism(v, iteration) for k, v in data.items()}
         if isinstance(data, list):
@@ -125,15 +86,6 @@ class Scrap:
         return data
 
     async def batch_mode(self, methods: dict, **kwargs):
-        """
-        Executa métodos em batch, iterando sobre listas de variáveis fornecidas.
-
-        Args:
-            methods (dict): Lista de métodos a serem executados em cada iteração.
-            **kwargs: Variáveis iteráveis para cada iteração.
-        Returns:
-            Any: Resultado do primeiro método que retornar valor não nulo.
-        """
         self.iter_args = deepcopy(kwargs)
         for i in range(len(list(iter(kwargs.values()))[0])):
             for items in methods:
@@ -153,59 +105,26 @@ class Scrap:
                 case "dismiss":
                     return await dialog.dismiss()
         self.page.on("dialog", handleDialog)
-        
     @scrap_wrapper
     async def backspace(self, times: int, **kwargs):
-        """
-        Pressiona a tecla Backspace repetidamente.
-
-        Args:
-            times (int): Quantidade de vezes que a tecla será pressionada.
-        """
         for _ in range(times):
             await self.page.keyboard.press("Backspace")
 
     @scrap_wrapper
     async def create_variables(self, **data: dict):
-        """
-        Cria variáveis internas a partir de pares chave/valor fornecidos.
-
-        Args:
-            **data: Pares nome/valor das variáveis a serem criadas.
-        """
         for key, value in data.items():
             self.ref[key] = value
 
     @scrap_wrapper
     async def go_to(self, url: str, **kwargs):
-        """
-        Navega até a URL especificada.
-
-        Args:
-            url (str): URL de destino.
-        """
         await self.page.goto(url)
 
     @staticmethod
     async def wait(seconds: float, **kwargs):
-        """
-        Aguarda o tempo passado em segundos.
-
-        Args:
-            seconds (float): Tempo de espera em segundos.
-        """
         await asyncio.sleep(seconds)
 
     @scrap_wrapper
     async def read_attribute(self, xpath: str, attribute: str, name: str, **kwargs):
-        """
-        Lê o valor de um atributo HTML e salva em uma variável nomeada.
-
-        Args:
-            xpath (str): XPath do elemento.
-            attribute (str): Nome do atributo.
-            name (str): Nome da variável para salvar o valor.
-        """
         attr_value = await self.page.locator(xpath).get_attribute(attribute)
         if attr_value.startswith("data:image/png;base64, "):
             attr_value = attr_value.split("data:image/png;base64, ")[1]
@@ -213,25 +132,11 @@ class Scrap:
 
     @scrap_wrapper
     async def read_inner_text(self, name: str, xpath: str = None, **kwargs):
-        """
-        Lê o texto interno de um elemento HTML e salva em uma variável.
-
-        Args:
-            name (str): Nome da variável para salvar o texto.
-            xpath (str, optional): XPath do elemento.
-        """
         text = await self.page.locator(xpath).inner_text()
         self.ref[name] = text
 
     @scrap_wrapper
     async def insert(self, xpath: str, text: str, **kwargs):
-        """
-        Preenche um campo de texto localizado por XPath.
-
-        Args:
-            xpath (str): XPath do campo de texto.
-            text (str): Texto a ser inserido.
-        """
         if kwargs.get("iframe"):
             await self.page.frame_locator(kwargs.get("iframe")).locator(xpath).fill(text)
         else:
@@ -239,12 +144,6 @@ class Scrap:
 
     @scrap_wrapper
     async def click(self, xpath: str, **kwargs):
-        """
-        Clica em um elemento da página localizado por XPath.
-
-        Args:
-            xpath (str): XPath do elemento.
-        """
         if kwargs.get("iframe"):
             await self.page.frame_locator(kwargs.get("iframe")).locator(xpath).click()
         else:        
@@ -252,26 +151,11 @@ class Scrap:
 
     @scrap_wrapper
     async def select_option(self, xpath: str, options_list: list, **kwargs):
-        """
-        Seleciona uma ou mais opções de um <select> usando label ou value.
-
-        Args:
-            xpath (str): XPath do elemento select.
-            options_list (list): Lista de valores/labels a selecionar.
-        """
         await self.page.locator(xpath).select_option(options_list)
 
     @scrap_wrapper
     async def select(self, xpath: str, **kwargs):
-        """
-        Verifica a existência de um elemento específico.
-
-        Args:
-            xpath (str): XPath do elemento.
-        Returns:
-            dict | None: Dicionário de erro se não encontrado, None caso contrário.
-        """        
-        if kwargs.get("iframe"):            
+        if kwargs.get("iframe"):
             locator = self.page.frame_locator(kwargs.get("iframe")).locator(xpath)
         else:
             locator = self.page.locator(xpath)
@@ -288,13 +172,6 @@ class Scrap:
 
     @scrap_wrapper
     async def save_file(self, xpath: str, path: str, **kwargs):
-        """
-        Clica em um elemento que dispara download e salva o arquivo em um diretório.
-
-        Args:
-            xpath (str): XPath do botão/link de download.
-            path (str): Caminho do diretório para salvar o arquivo.
-        """
         os.makedirs(path, exist_ok=True)
 
         async with self.page.expect_download() as download_info:
@@ -312,26 +189,12 @@ class Scrap:
 
     @scrap_wrapper
     async def page_to_pdf(self, path: str, **kwargs):
-        """
-        Imprime a página atual em PDF e salva no caminho passado.
-
-        Args:
-            path (str): Caminho do diretório para salvar o PDF.
-        """
         name = os.urandom(16).hex() + ".pdf"
         path = os.path.join(path, name)
         await self.page.pdf(path=path, format="A4")
         self.files_saved.append({'path': str(name)})    
 
     async def _img_to_base64(self, xpath: str):
-        """
-        Converte uma imagem localizada por XPath em base64.
-
-        Args:
-            xpath (str): XPath da imagem.
-        Returns:
-            str: Imagem codificada em base64.
-        """
         for _ in range(3):
             locator = self.page.locator(xpath)
             if await locator.count() == 0:
@@ -353,26 +216,12 @@ class Scrap:
         return img_src
 
     async def _replace_text(self, text: str):
-        """
-        Substitui $ref/variavel pelo valor salvo em self.ref.
-
-        Args:
-            text (str): Texto a ser processado.
-        Returns:
-            str: Texto com variáveis substituídas.
-        """
         if text.startswith("$ref/"):
             return self.ref[text.split("$ref/")[1]]
         return text
 
     @scrap_wrapper
     async def switch_page(self, xpath: str, **kwargs):
-        """
-        Clica em um elemento que abre nova página/aba e troca o contexto para ela.
-
-        Args:
-            xpath (str): XPath do elemento.
-        """
         async with self.context.expect_page() as new_page_info:
             await self.click(xpath)
 
@@ -381,24 +230,10 @@ class Scrap:
 
     @scrap_wrapper
     async def execute_script(self, script: str, **kwargs):
-        """
-        Executa um script JavaScript na página atual.
-
-        Args:
-            script (str): Código JavaScript a ser executado.
-        """
         await self.page.evaluate(script)
 
     @scrap_wrapper
     async def captcha_solver(self, api_key: str, img_xpath: str = None, input_xpath: str = None, **kwargs):
-        """
-        Resolve CAPTCHA usando a API 2Captcha. Suporta modo automático e manual.
-
-        Args:
-            api_key (str): Chave da API 2Captcha.
-            img_xpath (str, optional): XPath da imagem do CAPTCHA (modo manual).
-            input_xpath (str, optional): XPath do campo de input (modo manual).
-        """
         solver = TwoCaptcha(api_key)
         if not img_xpath:
             src = await self.page.locator("//iframe[@title = 'reCAPTCHA']").first.get_attribute("src")
@@ -420,15 +255,6 @@ class Scrap:
 
     @scrap_wrapper
     async def request_pdf(self, path: str, url: str = '', **kwargs):
-        """
-        Baixa a página como PDF caso a URL aponte para um PDF. Se não informado, usa a URL atual.
-
-        Args:
-            path (str): Caminho do diretório para salvar o PDF.
-            url (str, optional): URL do PDF. Se não informado, usa a URL atual.
-        Returns:
-            dict | None: Dicionário de erro se falhar, None se sucesso.
-        """
         if not url:
             url = self.page.url
         response = await self.page.context.request.get(url)
@@ -444,26 +270,14 @@ class Scrap:
 
     @scrap_wrapper
     async def wait_url_change(self, timeout: int, **kwargs):
-        """
-        Aguarda a mudança da URL atual.
-
-        Args:
-            timeout (int): Tempo máximo de espera em milissegundos.
-        """
         old_url = self.page.url
         await expect(self.page).not_to_have_url(old_url, timeout=timeout)
 
     async def close(self):
-        """
-        Encerra o contexto e a page.
-        Só fecha o browser e playwright se foram criados internamente.
-        """
         await self.context.close()
         
-        # Só fecha o browser se ele foi criado internamente (não é externo)
         if not self.external_browser and self.browser:
             await self.browser.close()
         
-        # Só para o playwright se foi iniciado internamente
         if self.playwright:
             await self.playwright.stop()
