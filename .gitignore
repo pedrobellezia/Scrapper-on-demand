@@ -34,3 +34,4 @@ logs/*
 
 # Ignorar arquivos PDF gerados
 /static/pdf/*
+/static/error/*

@@ -1,0 +1,34 @@
+version: 1
+disable_existing_loggers: false
+
+handlers:
+  console:
+    class: app.config.log_config.RichHandlerWrapper
+    level: DEBUG
+    show_time: true
+    log_time_format: "[%H:%M:%S]"
+    omit_repeated_times: false
+    rich_tracebacks: true
+    tracebacks_show_locals: true
+
+  jsonl:
+    class: app.config.log_config.JsonlHandler
+    level: WARNING
+    log_dir: logs
+root:
+  level: DEBUG
+  handlers: [console, jsonl]
+
+loggers:
+  app:
+    level: DEBUG
+    handlers: [console, jsonl]
+    propagate: false
+
+  # Desabilitando loggers
+  urllib3:
+    level: WARNING
+    propagate: false
+  requests:
+    level: WARNING
+    propagate: false

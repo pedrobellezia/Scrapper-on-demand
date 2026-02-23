@@ -2,7 +2,7 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 from enum import Enum
 from typing import Optional
-import log_config
+
 
 class StepFunc(str, Enum):
     confirm_popup = "confirm_popup"
@@ -25,6 +25,7 @@ class StepFunc(str, Enum):
     request_pdf = "request_pdf"
     wait_url_change = "wait_url_change"
 
+
 class Step(BaseModel):
     func: StepFunc
     args: dict[str, Any]
@@ -37,32 +38,29 @@ class DataRequest(BaseModel):
     timeout: Optional[int] = None
     steps: list[Step]
     browser_session: Optional[dict] = None
+
     class Config:
         extra = "forbid"
-
-
 
 
 def validate(data):
     try:
         validated_data = DataRequest(**data).model_dump()
-        return True, {
-            "status": "success",
-            "data": validated_data
-        }
+        return True, {"status": "success", "data": validated_data}
     except ValidationError as e:
         error_details = []
         for error in e.errors():
-            error_details.append({
-                "field": ".".join(str(loc) for loc in error["loc"]),
-                "type": error["type"],
-                "message": error["msg"],
-                "input": error.get("input")
-            })
+            error_details.append(
+                {
+                    "field": ".".join(str(loc) for loc in error["loc"]),
+                    "type": error["type"],
+                    "message": error["msg"],
+                    "input": error.get("input"),
+                }
+            )
 
         return False, {
             "status": "error",
             "error_count": len(e.errors()),
-            "details": error_details
+            "details": error_details,
         }
-
