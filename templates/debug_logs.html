@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Logs</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #58a6ff;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        
+        .stats {
+            background: #161b22;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #30363d;
+        }
+        
+        .stats span {
+            margin-right: 20px;
+            color: #8b949e;
+        }
+        
+        .stats strong {
+            color: #58a6ff;
+        }
+        
+        .log-entry {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: border-color 0.2s;
+        }
+        
+        .log-entry:hover {
+            border-color: #58a6ff;
+        }
+        
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #30363d;
+        }
+        
+        .log-level {
+            padding: 3px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .level-ERROR {
+            background: #da3633;
+            color: #fff;
+        }
+        
+        .level-WARNING {
+            background: #d29922;
+            color: #000;
+        }
+        
+        .level-INFO {
+            background: #1f6feb;
+            color: #fff;
+        }
+        
+        .level-DEBUG {
+            background: #6e7681;
+            color: #fff;
+        }
+        
+        .timestamp {
+            color: #8b949e;
+            font-size: 14px;
+        }
+        
+        .source-file {
+            color: #58a6ff;
+            font-size: 12px;
+        }
+        
+        .log-message {
+            color: #c9d1d9;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .log-details {
+            background: #0d1117;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        
+        .log-details pre {
+            color: #79c0ff;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .error-trace {
+            color: #f85149;
+            background: #1a1f28;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 11px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Debug Logs</h1>
+        
+        <div id="logsContainer">
+            {% for log in logs %}
+            <div class="log-entry" data-level="{{ log.level }}" data-content="{{ log | tojson | lower }}">
+                <div class="log-header">
+                    <div>
+                        <span class="log-level level-{{ log.level }}">{{ log.level }}</span>
+                        <span class="source-file">{{ log._source_file }}</span>
+                    </div>
+                    <span class="timestamp">{{ log.timestamp }}</span>
+                </div>
+                <div class="log-message">{{ log.message }}</div>
+                
+                {% if log.details %}
+                <div class="log-details">
+                    <pre>{{ log.details_json }}</pre>
+                </div>
+                {% endif %}
+                
+                {% if log.exception %}
+                <div class="error-trace">
+                    <strong>Exception:</strong><br>
+                    {{ log.exception | e }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>

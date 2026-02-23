@@ -8,12 +8,17 @@ import pytz
 import logging
 from contextlib import asynccontextmanager
 import asyncio
+from dotenv import load_dotenv
 
 from app.data_validation import validate
 from app.config.log_config import setup_logging
 from app.scrap import Scrap
 from app.config.state import worker_id
+from app.log_view import debug_logs_view, security
+from fastapi.security import HTTPBasicCredentials
+from fastapi import Depends
 
+load_dotenv()
 setup_logging()
 
 tz = pytz.timezone("America/Sao_Paulo")
@@ -50,6 +55,13 @@ app.mount("/pdf", StaticFiles(directory="static/pdf"), name="cnd")
 app.mount("/error", StaticFiles(directory="static/error"), name="cnd")
 
 
+@app.get("/debug")
+async def debug_logs(
+    request: Request, credentials: HTTPBasicCredentials = Depends(security)
+):
+    return await debug_logs_view(request, credentials)
+
+
 async def change_variables(data: Any, scrapper: Scrap) -> Any:
     if isinstance(data, str):
         if data.startswith("$ref/"):
@@ -64,6 +76,13 @@ async def change_variables(data: Any, scrapper: Scrap) -> Any:
     elif isinstance(data, dict):
         data = {k: await change_variables(v, scrapper) for k, v in data.items()}
     return data
+
+
+@app.get("/debug")
+async def execute_scrap(request: Request) -> dict:
+    with open("debug_data.json", "r", encoding="utf-8") as f:
+        data = await f.read()
+    return await _execute_scrap_internal(request)
 
 
 @app.post("/execute_scrap")

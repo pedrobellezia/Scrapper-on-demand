@@ -54,11 +54,11 @@ class Scrap:
                         "erro": str(e),
                         "func": func.__name__,
                         "params": kwargs,
-                        "worker": worker_id.get()
+                        "worker": worker_id.get(),
                     }
 
                     file_name = "Não foi possível salvar a página em pdf"
-                    
+
                     try:
                         file_name = f"{worker_id.get()}.pdf"
                         await self.page.pdf(path=f"static/error/{file_name}")
@@ -66,8 +66,7 @@ class Scrap:
                     except Exception as pdf_error:
                         extra.update({"file_name": file_name})
                         logging.debug(pdf_error)
-                    
-                    
+
                     logger.error(
                         f"Worker: {worker_id.get()} || Erro na execução do step",
                         extra={"extra": extra},
