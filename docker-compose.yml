@@ -5,7 +5,9 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - .:/app
-      - ./static/pdf:/pdf
+      - ./static/pdf:/app/static/pdf
+      - ./static/error:/app/static/error
       - ./logs:/app/logs
+    env_file:
+      - .env
     restart: unless-stopped
