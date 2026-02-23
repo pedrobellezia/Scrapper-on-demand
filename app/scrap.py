@@ -1,3 +1,4 @@
+import concurrent.futures
 from app.config.state import worker_id
 from twocaptcha import TwoCaptcha
 import logging
@@ -255,28 +256,35 @@ class Scrap:
     async def captcha_solver(
         self, api_key: str, img_xpath: str = None, input_xpath: str = None, **kwargs
     ):
+        loop = asyncio.get_running_loop()
         solver = TwoCaptcha(api_key)
-        if not img_xpath:
-            src = await self.page.locator(
-                "//iframe[@title = 'reCAPTCHA']"
-            ).first.get_attribute("src")
-            sitekey = src.split("k=")[1].split("&")[0]
-            url = self.page.url
-            result = solver.recaptcha(sitekey=sitekey, url=url)
-            token = result["code"]
-            await self.page.locator("//textarea[@id='g-recaptcha-response']").evaluate(
-                "(el) => el.style.display = 'block'"
-            )
-            await self.page.locator("//textarea[@id='g-recaptcha-response']").fill(
-                token
-            )
-            await self.page.locator("//textarea[@id='g-recaptcha-response']").evaluate(
-                "(el) => el.style.display = 'none'"
-            )
-        else:
-            img64 = await self._img_to_base64(img_xpath)
-            result = solver.normal(img64, caseSensitive=1)["code"]
-            await self.page.locator(input_xpath).fill(result)
+        
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            if not img_xpath:
+                src = await self.page.locator(
+                    "//iframe[@title = 'reCAPTCHA']"
+                ).first.get_attribute("src")
+                sitekey = src.split("k=")[1].split("&")[0]
+                url = self.page.url
+                result = await loop.run_in_executor(
+                    pool, lambda: solver.recaptcha(sitekey=sitekey, url=url)
+                )
+                token = result["code"]
+                await self.page.locator("//textarea[@id='g-recaptcha-response']").evaluate(
+                    "(el) => el.style.display = 'block'"
+                )
+                await self.page.locator("//textarea[@id='g-recaptcha-response']").fill(
+                    token
+                )
+                await self.page.locator("//textarea[@id='g-recaptcha-response']").evaluate(
+                    "(el) => el.style.display = 'none'"
+                )
+            else:
+                img64 = await self._img_to_base64(img_xpath)
+                result = await loop.run_in_executor(
+                    pool, lambda: solver.normal(img64, caseSensitive=1)["code"]
+                )
+                await self.page.locator(input_xpath).fill(result)
 
     @scrap_wrapper
     async def request_pdf(self, path: str, url: str = "", **kwargs):
