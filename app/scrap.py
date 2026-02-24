@@ -43,45 +43,46 @@ class Scrap:
     @staticmethod
     def scrap_wrapper(func):
         async def wrapper(self, *args, **kwargs):
-            try:
-                if not kwargs.get("ignore_execution"):
+            tries = deepcopy(kwargs).get("executions", 1)
+            for attempt in range(tries):
+                try:
                     result = await func(self, *args, **kwargs)
                     return result if result else None
-            except Exception as e:
-                if kwargs.get("ignore_error"):
-                    return None
-                else:
-                    extra = {
-                        "erro": str(e),
-                        "func": func.__name__,
-                        "params": kwargs,
-                        "worker": worker_id.get(),
-                    }
+                except Exception as e:
+                    if attempt < tries - 1 or kwargs.get("ignore_error"):
+                        continue
+                    else:
+                        extra = {
+                            "erro": str(e),
+                            "func": func.__name__,
+                            "params": kwargs,
+                            "worker": worker_id.get(),
+                        }
 
-                    file_name = "Não foi possível salvar a página em pdf"
+                        file_name = "Não foi possível salvar a página em pdf"
 
-                    try:
-                        file_name = f"{worker_id.get()}.pdf"
-                        await self.page.pdf(path=f"static/error/{file_name}")
-                        extra.update({"file_name": file_name})
-                    except Exception as pdf_error:
-                        extra.update({"file_name": file_name})
-                        logging.debug(pdf_error)
+                        try:
+                            file_name = f"{worker_id.get()}.pdf"
+                            await self.page.pdf(path=f"static/error/{file_name}")
+                            extra.update({"file_name": file_name})
+                        except Exception as pdf_error:
+                            extra.update({"file_name": file_name})
+                            logging.debug(pdf_error)
 
-                    logger.error(
-                        f"Worker: {worker_id.get()} || Erro na execução do step",
-                        extra={"extra": extra},
-                    )
+                        logger.error(
+                            f"Worker: {worker_id.get()} || Erro na execução do step",
+                            extra={"extra": extra},
+                        )
 
-                    return {
-                        "status_code": 500,
-                        "message": type(e).__name__,
-                        "details": {
-                            "name": func.__name__,
-                            "args": kwargs,
-                            "screenshot_url": file_name,
-                        },
-                    }
+                        return {
+                            "status_code": 500,
+                            "message": type(e).__name__,
+                            "details": {
+                                "name": func.__name__,
+                                "args": kwargs,
+                                "screenshot_url": file_name,
+                            },
+                        }
 
         return wrapper
 
@@ -259,7 +260,7 @@ class Scrap:
     ):
         loop = asyncio.get_running_loop()
         solver = TwoCaptcha(api_key)
-        
+
         with concurrent.futures.ThreadPoolExecutor() as pool:
             if not img_xpath:
                 src = await self.page.locator(
@@ -271,15 +272,15 @@ class Scrap:
                     pool, lambda: solver.recaptcha(sitekey=sitekey, url=url)
                 )
                 token = result["code"]
-                await self.page.locator("//textarea[@id='g-recaptcha-response']").evaluate(
-                    "(el) => el.style.display = 'block'"
-                )
+                await self.page.locator(
+                    "//textarea[@id='g-recaptcha-response']"
+                ).evaluate("(el) => el.style.display = 'block'")
                 await self.page.locator("//textarea[@id='g-recaptcha-response']").fill(
                     token
                 )
-                await self.page.locator("//textarea[@id='g-recaptcha-response']").evaluate(
-                    "(el) => el.style.display = 'none'"
-                )
+                await self.page.locator(
+                    "//textarea[@id='g-recaptcha-response']"
+                ).evaluate("(el) => el.style.display = 'none'")
             else:
                 img64 = await self._img_to_base64(img_xpath)
                 result = await loop.run_in_executor(
