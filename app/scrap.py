@@ -209,6 +209,7 @@ class Scrap:
 
     @scrap_wrapper
     async def page_to_pdf(self, path: str, **kwargs):
+        os.makedirs(path, exist_ok=True)
         name = os.urandom(16).hex() + ".pdf"
         path = os.path.join(path, name)
         await self.page.pdf(path=path, format="A4")
@@ -288,13 +289,14 @@ class Scrap:
 
     @scrap_wrapper
     async def request_pdf(self, path: str, url: str = "", **kwargs):
+        os.makedirs(path, exist_ok=True)
         if not url:
             url = self.page.url
         response = await self.page.context.request.get(url)
         if response.ok:
-            name = os.urandom(16).hex()
-            file_path = f"{path}/{name}.pdf"
-            self.files_saved.append({"path": str(name)})
+            file_name = os.urandom(16).hex() + ".pdf"
+            file_path = os.path.join(path, file_name)
+            self.files_saved.append({"path": str(file_name)})
             with open(file_path, "wb") as f:
                 f.write(await response.body())
         else:
