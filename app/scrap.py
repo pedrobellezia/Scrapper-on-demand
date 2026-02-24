@@ -191,7 +191,7 @@ class Scrap:
             }
 
     @scrap_wrapper
-    async def save_file(self, xpath: str, path: str, **kwargs):
+    async def save_file(self, xpath: str, path: str = "static/pdf", **kwargs):
         os.makedirs(path, exist_ok=True)
 
         async with self.page.expect_download() as download_info:
@@ -208,7 +208,7 @@ class Scrap:
         self.files_saved.append({"path": str(file_name)})
 
     @scrap_wrapper
-    async def page_to_pdf(self, path: str, **kwargs):
+    async def page_to_pdf(self, path: str = "static/pdf", **kwargs):
         os.makedirs(path, exist_ok=True)
         name = os.urandom(16).hex() + ".pdf"
         path = os.path.join(path, name)
@@ -288,7 +288,7 @@ class Scrap:
                 await self.page.locator(input_xpath).fill(result)
 
     @scrap_wrapper
-    async def request_pdf(self, path: str, url: str = "", **kwargs):
+    async def request_pdf(self, path: str = "static/pdf", url: str = "", **kwargs):
         os.makedirs(path, exist_ok=True)
         if not url:
             url = self.page.url
