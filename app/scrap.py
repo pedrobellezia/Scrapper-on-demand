@@ -10,7 +10,7 @@ from playwright.async_api import async_playwright, expect
 import base64
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app")
 
 
 class Scrap:
@@ -49,7 +49,15 @@ class Scrap:
                     result = await func(self, *args, **kwargs)
                     return result if result else None
                 except Exception as e:
-                    if attempt < tries - 1 or kwargs.get("ignore_error"):
+                    should_retry = attempt < tries - 1 or kwargs.get("ignore_error")
+                    logger.debug(
+                        "Falha em '%s' na tentativa %s/%s | retry=%s",
+                        func.__name__,
+                        attempt + 1,
+                        tries,
+                        should_retry,
+                    )
+                    if should_retry:
                         continue
                     else:
                         extra = {
@@ -70,7 +78,7 @@ class Scrap:
                             logging.debug(pdf_error)
 
                         logger.error(
-                            f"Worker: {worker_id.get()} || Erro na execução do step",
+                            "Worker: %s || Erro na execução do step", worker_id.get(),
                             extra={"extra": extra},
                         )
 

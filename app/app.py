@@ -77,14 +77,6 @@ async def change_variables(data: Any, scrapper: Scrap) -> Any:
         data = {k: await change_variables(v, scrapper) for k, v in data.items()}
     return data
 
-
-@app.get("/debug")
-async def execute_scrap(request: Request) -> dict:
-    with open("debug_data.json", "r", encoding="utf-8") as f:
-        data = await f.read()
-    return await _execute_scrap_internal(request)
-
-
 @app.post("/execute_scrap")
 async def execute_scrap(request: Request) -> dict:
     async with semaphore:
@@ -111,7 +103,7 @@ async def _execute_scrap_internal(request: Request) -> dict:
         scrapper.context.set_default_timeout(timeout)
 
     for step in data["steps"]:
-        logger.info(f"Worker: {worker_id.get()} || Executando método: {step['func']}")
+        logger.info("Worker: %s || Executando método: %s", worker_id.get(), step['func'])
         metodo = getattr(scrapper, step["func"])
         if "xpath" in step["args"]:
             if not step["args"]["xpath"].startswith("xpath="):
