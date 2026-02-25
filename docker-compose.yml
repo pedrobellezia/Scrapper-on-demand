@@ -4,6 +4,7 @@ services:
     container_name: scrapper-api
     ports:
       - "5000:5000"
+      - "5900:5900"
     volumes:
       - ./static/pdf:/app/static/pdf
       - ./static/error:/app/static/error
