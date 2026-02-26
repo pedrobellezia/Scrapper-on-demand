@@ -25,7 +25,7 @@ env/
 *~
 
 # Logs
-logs/*.jsonl
+logs/*
 
 # Static files
 static/pdf/*
@@ -34,6 +34,7 @@ static/error/*
 # Cache
 .ruff_cache/
 .pytest_cache/
+__pycache__/
 
 # Docker
 Dockerfile
