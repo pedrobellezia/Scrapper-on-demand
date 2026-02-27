@@ -144,7 +144,7 @@ class Scrap:
 
     @scrap_wrapper
     async def go_to(self, url: str, **kwargs):
-        await self.page.goto(url)
+        await self.page.goto(url, timeout=60000)
 
     @staticmethod
     async def wait(seconds: float, **kwargs):

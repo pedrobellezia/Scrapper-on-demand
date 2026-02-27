@@ -111,6 +111,8 @@ async def _execute_scrap_internal(request: Request) -> dict:
         new_steps = await change_variables(step["args"], scrapper)
         resultado = await metodo(**new_steps)
         if resultado:
+            await scrapper.context.close()
+            await scrapper.page.close()
             raise HTTPException(status_code=500, detail=resultado)
 
     await scrapper.close()

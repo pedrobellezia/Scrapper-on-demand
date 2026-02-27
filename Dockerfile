@@ -22,12 +22,12 @@ COPY app/ ./app/
 COPY templates/ ./templates/
 COPY .env* ./
 
-EXPOSE 5000 5900
+EXPOSE 5049 5900
 
 CMD bash -c "\
     Xvfb :99 -screen 0 1920x1080x24 & \
     fluxbox & \
     x11vnc -display :99 -forever -nopw -listen 0.0.0.0 -xkb & \
     export DISPLAY=:99 && \
-    python -m uvicorn app.app:app --host 0.0.0.0 --port 5000 \
+    python -m uvicorn app.app:app --host 0.0.0.0 --port 5049 \
 "
